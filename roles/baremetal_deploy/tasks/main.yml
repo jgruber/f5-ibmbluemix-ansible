@@ -1,0 +1,273 @@
+---
+# Copyright (c) 2017 F5 Networks Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+- name: env_baremetal_host_address
+  set_fact:
+    baremetal_host_address: "{{ lookup('env', 'BAREMETAL_HOST_ADDRESS') }}"
+  when: ( hostvars["localhost"]["baremetal_host_address"] is not defined )
+- name: check_baremetal_host_address
+  pause:
+    prompt: "Enter SoftLayer Baremetal Host IP Address for SSH Acccess: "
+  when: ( hostvars["localhost"]["baremetal_host_address"] == "" )
+  register: baremetal_host_address_user_input
+- name: user_input_baremetal_host_address
+  set_fact:
+    baremetal_host_address: "{{ baremetal_host_address_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["baremetal_host_address"] == "" ) and
+        ( baremetal_host_address_user_input is defined )
+
+- name: remove_ssh_known_host
+  command: "ssh-keygen -R {{ baremetal_host_address }}"
+  ignore_errors: true
+
+- name: authorize_ssh_access
+  command:  "ssh -oStrictHostKeyChecking=no -oPasswordAuthentication=no root@{{ baremetal_host_address }}"
+  register: is_ssh_authorized
+  ignore_errors: true
+
+- name: env_baremetal_root_password
+  set_fact:
+    baremetal_root_password: "{{ lookup('env', 'BAREMETAL_ROOT_PASSWORD') }}"
+  when: ( is_ssh_authorized['failed'] ) and
+        ( hostvars["localhost"]["baremetal_root_password"] is not defined )
+- name: check_baremetal_root_password
+  pause:
+    prompt: "Enter SoftLayer Baremetal Root Password for SSH Acccess: "
+  when: ( is_ssh_authorized['failed'] ) and
+        ( hostvars["localhost"]["baremetal_root_password"] == "" )
+  register: baremetal_root_password_user_input
+- name: user_input_baremetal_root_password
+  set_fact:
+    baremetal_root_password: "{{ baremetal_root_password_user_input['user_input'] }}"
+  when: ( is_ssh_authorized['failed'] ) and
+        ( baremetal_root_password_user_input is defined )
+- name: copy_ssh_key
+  ssh_copy_id:
+    hostname: "{{ baremetal_host_address }}"
+    username: root
+    password: "{{ baremetal_root_password }}"
+    ssh_public_key: "{{ home_directory }}/.ssh/id_rsa.pub"
+  when: ( is_ssh_authorized['failed'] )
+
+- name: env_tmos_admin_password
+  set_fact:
+    tmos_admin_password: "{{ lookup('env', 'TMOS_ADMIN_PASSWORD') }}"
+  when: ( hostvars["localhost"]["tmos_admin_password"] is not defined ) 
+- name: check_tmos_admin_password
+  pause:
+    prompt: "Enter Desired TMOS admin User Password: "
+  when: ( hostvars["localhost"]["tmos_admin_password"] == "" )
+  register: tmos_admin_password_user_input
+- name: user_input_tmos_admin_password
+  set_fact:
+    tmos_admin_password: "{{ tmos_admin_password_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["tmos_admin_password"] == "" ) and
+        ( tmos_admin_password_user_input is defined )
+
+- name: env_tmos_root_password
+  set_fact:
+    tmos_root_password: "{{ lookup('env', 'TMOS_ROOT_PASSWORD') }}"
+  when: ( hostvars["localhost"]["tmos_root_password"] is not defined )
+- name: check_tmos_root_password
+  pause:
+    prompt: "Enter Desired TMOS root User Password: "
+  when: ( hostvars["localhost"]["tmos_root_password"] == "" )
+  register: tmos_root_password_user_input
+- name: user_input_tmos_root_password
+  set_fact:
+    tmos_root_password: "{{ tmos_root_password_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["tmos_root_password"] == "" ) and
+        ( tmos_root_password_user_input is defined )
+
+- name: env_bigip_unzipped_qcow_image_url
+  set_fact:
+    bigip_unzipped_qcow_image_url: "{{ lookup('env', 'BIGIP_UNZIPPED_QCOW_IMAGE_URL') }}"
+  when: ( hostvars["localhost"]["bigip_unzipped_qcow_image_url"] is not defined )
+- name: check_bigip_unzipped_qcow_image_url
+  pause:
+    prompt: "Enter URL for the BIG-IP qcow2 Disk Image (unzipped): "
+  when: ( hostvars["localhost"]["bigip_unzipped_qcow_image_url"] == "" )
+  register: bigip_unzipped_qcow_image_url_user_input
+- name: user_input_bigip_unzipped_qcow_image_url
+  set_fact:
+    bigip_unzipped_qcow_image_url: "{{ bigip_unzipped_qcow_image_url_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["bigip_unzipped_qcow_image_url"] == "" ) and
+        ( bigip_unzipped_qcow_image_url_user_input is defined )
+
+- name: env_tmos_ve_domain_template
+  set_fact:
+    tmos_ve_domain_template: "{{ lookup('env', 'TMOS_VE_DOMAIN_TEMPLATE') }}"
+  when: ( hostvars["localhost"]["tmos_ve_domain_template"] is not defined )
+- name: check_tmos_ve_domain_template
+  pause:
+    prompt: "Enter TMOS VE Domain Template URL: "
+  when: ( hostvars["localhost"]["tmos_ve_domain_template"] == "" )
+  register: tmos_ve_domain_template_user_input
+- name: user_input_tmos_ve_domain_template
+  set_fact:
+    tmos_ve_domain_template: "{{ tmos_ve_domain_template_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["tmos_ve_domain_template"] == "" ) and
+        ( tmos_ve_domain_template_user_input is defined )
+
+- name: env_user_data_url
+  set_fact:
+    user_data_url: "{{ lookup('env', 'USER_DATA_URL') }}"
+  when: ( hostvars["localhost"]["user_data_url"] is not defined )
+- name: check_user_data_url
+  pause:
+    prompt: "Enter TMOS VE user_data orchestration script URL: "
+  when: ( hostvars["localhost"]["user_data_url"] == "" )
+  register: user_data_url_user_input
+- name: user_input_user_data_url
+  set_fact:
+    user_data_url: "{{ user_data_url_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["user_data_url"] == "" ) and
+        ( user_data_url_user_input is defined )
+
+- name: env_tmos_license_basekey
+  set_fact:
+    tmos_license_basekey: "{{ lookup('env', 'TMOS_LICENSE_BASEKEY') }}"
+  when: ( hostvars["localhost"]["tmos_license_basekey"] is not defined )
+- name: check_tmos_license_basekey
+  pause:
+    prompt: "Enter TMOS License Basekey for this Instance: "
+  when: ( hostvars["localhost"]["tmos_license_basekey"] == "" )
+  register: tmos_license_basekey_user_input
+- name: user_input_tmos_license_basekey
+  set_fact:
+    tmos_license_basekey: "{{ tmos_license_basekey_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["tmos_license_basekey"] == "" ) and
+        ( tmos_license_basekey_user_input is defined )
+
+- name: env_portable_private_address
+  set_fact:
+    portable_private_address: "{{ lookup('env', 'PORTABLE_PRIVATE_ADDRESS') }}"
+  when: ( hostvars["localhost"]["portable_private_address"] is not defined )
+- name: check_portable_private_address
+  pause:
+    prompt: "Enter Baremetal Portable Private Subnet IP Address: "
+  when: ( hostvars["localhost"]["portable_private_address"] == "" )
+  register: portable_private_address_user_input
+- name: user_input_portable_private_address
+  set_fact:
+    portable_private_address: "{{ portable_private_address_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["portable_private_address"] == "" ) and
+        ( portable_private_address_user_input is defined )
+
+- name: env_portable_private_netmask
+  set_fact:
+    portable_private_netmask: "{{ lookup('env', 'PORTABLE_PRIVATE_NETMASK') }}"
+  when: ( hostvars["localhost"]["portable_private_netmask"] is not defined )
+- name: check_portable_private_netmask
+  pause:
+    prompt: "Enter Baremetal Portable Private Subnet Netmask: "
+  when: ( hostvars["localhost"]["portable_private_netmask"] == "" )
+  register: portable_private_netmask_user_input
+- name: user_input_portable_private_netmask
+  set_fact:
+    portable_private_netmask: "{{ portable_private_netmask_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["portable_private_netmask"] == "" ) and
+        ( portable_private_netmask_user_input is defined )
+
+- name: env_portable_private_gateway
+  set_fact:
+    portable_private_gateway: "{{ lookup('env', 'PORTABLE_PRIVATE_GATEWAY') }}"
+  when: ( hostvars["localhost"]["portable_private_gateway"] is not defined )
+- name: check_portable_private_gateway
+  pause:
+    prompt: "Enter Baremetal Portable Private Subnet Gateway Address: "
+  when: ( hostvars["localhost"]["portable_private_gateway"] == "" )
+  register: portable_private_gateway_user_input
+- name: user_input_portable_private_gateway
+  set_fact:
+    portable_private_gateway: "{{ portable_private_gateway_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["portable_private_gateway"] == "" ) and
+        ( portable_private_gateway_user_input is defined )
+
+- name: env_portable_public_address
+  set_fact:
+    portable_public_address: "{{ lookup('env', 'PORTABLE_PUBLIC_ADDRESS') }}"
+  when: ( hostvars["localhost"]["portable_public_address"] is not defined )
+- name: check_portable_public_address
+  pause:
+    prompt: "Enter Baremetal Portable Public Subnet IP Address: "
+  when: ( hostvars["localhost"]["portable_public_address"] == "" )
+  register: portable_public_address_user_input
+- name: user_input_portable_public_address
+  set_fact:
+    portable_public_address: "{{ portable_public_address_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["portable_public_address"] == "" ) and
+        ( portable_public_address_user_input is defined )
+
+- name: env_portable_public_netmask
+  set_fact:
+    portable_public_netmask: "{{ lookup('env', 'PORTABLE_PUBLIC_NETMASK') }}"
+  when: ( hostvars["localhost"]["portable_public_netmask"] is not defined )
+- name: check_portable_public_netmask
+  pause:
+    prompt: "Enter Baremetal Portable Public Subnet Netmask: "
+  when: ( hostvars["localhost"]["portable_public_netmask"] == "" )
+  register: portable_public_netmask_user_input
+- name: user_input_portable_public_netmask
+  set_fact:
+    portable_public_netmask: "{{ portable_public_netmask_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["portable_public_netmask"] == "" ) and
+        ( portable_public_netmask_user_input is defined )
+
+- name: env_portable_public_gateway
+  set_fact:
+    portable_public_gateway: "{{ lookup('env', 'PORTABLE_PRIVATE_GATEWAY') }}"
+  when: ( hostvars["localhost"]["portable_public_gateway"] is not defined )
+- name: check_portable_public_gateway
+  pause:
+    prompt: "Enter Baremetal Portable Public Subnet Gateway Address: "
+  when: ( hostvars["localhost"]["portable_public_gateway"] == "" )
+  register: portable_public_gateway_user_input
+- name: user_input_portable_public_gateway
+  set_fact:
+    portable_public_gateway: "{{ portable_public_gateway_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["portable_public_gateway"] == "" ) and
+        ( portable_public_gateway_user_input is defined )
+
+- name: env_ibm_bm_install_script_url
+  set_fact:
+    ibm_bm_install_script_url: "{{ lookup('env', 'IBM_BM_INSTALL_SCRIPT_URL') }}"
+  when: ( hostvars["localhost"]["ibm_bm_install_script_url"] is not defined )
+- name: check_ibm_bm_install_script_url
+  pause:
+    prompt: "Enter Baremetal Install Script URL: "
+  when: ( hostvars["localhost"]["ibm_bm_install_script_url"] == "" )
+  register: ibm_bm_install_script_url_user_input
+- name: user_input_ibm_bm_install_script_url
+  set_fact:
+    ibm_bm_install_script_url: "{{ ibm_bm_install_script_url_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["ibm_bm_install_script_url"] == "" ) and
+        ( ibm_bm_install_script_url_user_input is defined )
+
+- name: template_install_script
+  template:
+    src: roles/baremetal_deploy/templates/ibmbm_tmos_ve_install_env.j2
+    dest: /tmp/ibmbm_tmos_ve_install_env.sh
+
+- name: copy_install_env_to_baremetal_host
+  command: "scp -oStrictHostKeyChecking=no -oPasswordAuthentication=no /tmp/ibmbm_tmos_ve_install_env.sh root@{{ baremetal_host_address }}:/root/"
+  
+- name: copy_install_script_to_baremetal_host
+  command: "ssh -t root@{{ baremetal_host_address}} wget -O /root/ibmbm_tmos_ve_install.sh {{ ibm_bm_install_script_url }}"
+
+- name: deploy_tmos_ve_to_baremetal_host
+  command: "ssh -t root@{{ baremetal_host_address}} \"source /root/ibmbm_tmos_ve_install_env.sh; bash /root/ibmbm_tmos_ve_install.sh deploy\""
+  register: deployment_run

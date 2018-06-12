@@ -1,0 +1,85 @@
+---
+# Copyright (c) 2017 F5 Networks Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+- name: env_baremetal_host_address
+  set_fact:
+    baremetal_host_address: "{{ lookup('env', 'BAREMETAL_HOST_ADDRESS') }}"
+  when: ( hostvars["localhost"]["baremetal_host_address"] is not defined )
+- name: check_baremetal_host_address
+  pause:
+    prompt: "Enter SoftLayer Baremetal Host IP Address for SSH Acccess: "
+  when: ( hostvars["localhost"]["baremetal_host_address"] == "" )
+  register: baremetal_host_address_user_input
+- name: user_input_baremetal_host_address
+  set_fact:
+    baremetal_host_address: "{{ baremetal_host_address_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["baremetal_host_address"] == "" ) and
+        ( baremetal_host_address_user_input is defined )
+
+- name: remove_ssh_known_host
+  command: "ssh-keygen -R {{ baremetal_host_address }}"
+  ignore_errors: true
+
+- name: authorize_ssh_access
+  command:  "ssh -oStrictHostKeyChecking=no -oPasswordAuthentication=no root@{{ baremetal_host_address }}"
+  register: is_ssh_authorized
+  ignore_errors: true
+
+- name: env_baremetal_root_password
+  set_fact:
+    baremetal_root_password: "{{ lookup('env', 'BAREMETAL_ROOT_PASSWORD') }}"
+  when: ( is_ssh_authorized['failed'] ) and
+        ( hostvars["localhost"]["baremetal_root_password"] is not defined )
+- name: check_baremetal_root_password
+  pause:
+    prompt: "Enter SoftLayer Baremetal Root Password for SSH Acccess: "
+  when: ( is_ssh_authorized['failed'] ) and
+        ( hostvars["localhost"]["baremetal_root_password"] == "" )
+  register: baremetal_root_password_user_input
+- name: user_input_baremetal_root_password
+  set_fact:
+    baremetal_root_password: "{{ baremetal_root_password_user_input['user_input'] }}"
+  when: ( is_ssh_authorized['failed'] ) and
+        ( baremetal_root_password_user_input is defined )
+- name: copy_ssh_key
+  ssh_copy_id:
+    hostname: "{{ baremetal_host_address }}"
+    username: root
+    password: "{{ baremetal_root_password }}"
+    ssh_public_key: "{{ home_directory }}/.ssh/id_rsa.pub"
+  when: ( is_ssh_authorized['failed'] )
+
+- name: env_ibm_bm_install_script_url
+  set_fact:
+    ibm_bm_install_script_url: "{{ lookup('env', 'IBM_BM_INSTALL_SCRIPT_URL') }}"
+  when: ( hostvars["localhost"]["ibm_bm_install_script_url"] is not defined )
+- name: check_ibm_bm_install_script_url
+  pause:
+    prompt: "Enter Baremetal Install Script URL: "
+  when: ( hostvars["localhost"]["ibm_bm_install_script_url"] == "" )
+  register: ibm_bm_install_script_url_user_input
+- name: user_input_ibm_bm_install_script_url
+  set_fact:
+    ibm_bm_install_script_url: "{{ ibm_bm_install_script_url_user_input['user_input'] }}"
+  when: ( hostvars["localhost"]["ibm_bm_install_script_url"] == "" ) and
+        ( ibm_bm_install_script_url_user_input is defined )
+ 
+- name: copy_install_script_to_baremetal_host
+  command: "ssh -t root@{{ baremetal_host_address}} wget -O /root/ibmbm_tmos_ve_install.sh {{ ibm_bm_install_script_url }}"
+
+- name: destroy_tmos_ve_to_baremetal_host
+  command: "ssh -t root@{{ baremetal_host_address}} \"bash /root/ibmbm_tmos_ve_install.sh destroy\""
+  register: destroy_run

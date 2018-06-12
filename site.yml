@@ -1,0 +1,29 @@
+---
+- hosts: localhost
+  name: Create or Destroy an f5 TMOS device stack in IBM Public Cloud
+  vars:
+    deployment: baremetal
+    state: present
+    ansible_user: "{{ lookup('env', 'USER') }}"
+    home_directory: "{{ lookup('env', 'HOME') }}"
+
+  tasks:
+    - name: Deploy TMOS VE to Bare Metal Server
+      include_role:
+        name: baremetal_deploy
+      when: ( deployment == "baremetal" ) and ( state == "present" )
+
+    - name: Destroy TMOS VE to Bare Metal Server
+      include_role:
+        name: baremetal_destroy
+      when: ( deployment == "baremetal" ) and ( state == "absent" )
+
+    - name: Deploy TMOS VE Virtual Server
+      include_role:
+        name: virtual_deploy
+      when: ( deployment == "virtual" ) and ( state == "present" )
+
+    - name: Destroy TMOS VE Virtual Server
+      include_role:
+        name: virtual_destroy
+      when: ( deployment == "virtual" ) and ( state == "absent" )
